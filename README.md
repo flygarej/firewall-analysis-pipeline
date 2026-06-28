@@ -13,8 +13,8 @@ The rsyslog-remotelogexample.conf is a template for rsyslog 8.2312 (Standard ver
 that handles some of the quirks of that version. If you use an older/newer version, expect 
 some friction...
 
-A raw event from a router might look something like this:
-<13>Jun 19 23:46:33 <router name> <router name> [<fw-rule-name>] DESCR="[<description>]Block All Traffic" IN=<eth if> OUT= MAC=<MAC> SRC=<SOURCE IP> DST=<DST IP> LEN=XX TOS=YY PREC=0x00 TTL=<TTL> ID=<ID> PROTO=TCP SPT=51765 DPT=9332 SEQ=<SEQ> ACK=0 WINDOW=<WIN> SYN URGP=0 MARK=<MARK>
+A raw event from a router might look something like this (values have been deleted for security reasons):
+Jun 19 23:46:33 router-name router_name [fw-rule-name] DESCR="[description]Block All Traffic" IN=eth-if OUT= MAC=MAC SRC=SOURCE-IP DST=DST-IP LEN=XX TOS=YY PREC=0x00 TTL=TTL ID=ID PROTO=TCP SPT=51765 DPT=9332 SEQ=SEQ ACK=0 WINDOW=WIN SYN URGP=0 MARK=MARK
 
 The ruleset in the file will create a JSON object containing all the data found in the log entry.
 As this will most certainly differ between routers, you will need to tweak the rsyslog config.

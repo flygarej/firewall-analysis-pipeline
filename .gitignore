@@ -1,0 +1,7 @@
+.pgpass
+*.log
+*.log.*
+*.gz
+work/
+log/
+.env

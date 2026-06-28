@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASE_DIR="$(dirname "$SCRIPT_DIR")"
+
+[[ -f "$BASE_DIR/config.env" ]] && source "$BASE_DIR/config.env"
+
+DB_HOST="${DB_HOST:-localhost}"
+DB_PORT="${DB_PORT:-5432}"
+DB_NAME="${DB_NAME:-logdb}"
+DB_USER="${DB_USER:-loguser}"
+
+PSQL=(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME")
+
+case "${1:-}" in
+    top-scanners)
+        "${PSQL[@]}" -c "
+            SELECT net_src_ip, count(*) AS hits
+            FROM firewall.events
+            WHERE reported_at >= now() - interval '7 days'
+            GROUP BY net_src_ip
+            ORDER BY hits DESC
+            LIMIT 30;
+        "
+        ;;
+
+    top-ports)
+        "${PSQL[@]}" -c "
+            SELECT net_dst_port, count(*) AS hits
+            FROM firewall.events
+            WHERE reported_at >= now() - interval '7 days'
+            GROUP BY net_dst_port
+            ORDER BY hits DESC
+            LIMIT 30;
+        "
+        ;;
+
+    mirai)
+        "${PSQL[@]}" -c "
+            SELECT
+                net_src_ip,
+                net_dst_ip,
+                net_dst_port,
+                net_seq,
+                count(*) AS hits
+            FROM firewall.events
+            WHERE net_protocol = 'tcp'
+              AND net_flag_syn = true
+              AND family(net_dst_ip) = 4
+              AND mirai_signature = true
+            GROUP BY net_src_ip, net_dst_ip, net_dst_port, net_seq
+            ORDER BY hits DESC
+            LIMIT 50;
+        "
+        ;;
+
+    fingerprints)
+        "${PSQL[@]}" -c "
+            SELECT
+                net_src_ip,
+                net_dst_port,
+                net_ttl,
+                net_window,
+                net_flag_syn,
+                net_flag_ack,
+                net_flag_rst,
+                count(*) AS hits
+            FROM firewall.events
+            WHERE reported_at >= now() - interval '7 days'
+            GROUP BY
+                net_src_ip,
+                net_dst_port,
+                net_ttl,
+                net_window,
+                net_flag_syn,
+                net_flag_ack,
+                net_flag_rst
+            ORDER BY hits DESC
+            LIMIT 50;
+        "
+        ;;
+
+    imports)
+        "${PSQL[@]}" -c "
+            SELECT imported_at, source_host, source_path, source_size, row_count
+            FROM firewall.imported_files
+            ORDER BY imported_at DESC
+            LIMIT 20;
+        "
+        ;;
+
+    *)
+        echo "Usage: fwq {top-scanners|top-ports|mirai-seq|fingerprints|imports}"
+        exit 1
+        ;;
+esac

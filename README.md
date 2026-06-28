@@ -29,3 +29,6 @@ staging table, and then into the target table. The 2-step process is to catch an
 These scripts will assume you've set up environment variables in a config.env file in the project
 root. See config.env.example for how that is done.
 
+The scripts to transfer data are set up to transfer all data from __yesterday__ to ensure all data are added properly.
+It's possible to have data added as they arrive, and this project will probably head in that direction later on.
+

@@ -16,14 +16,14 @@ some friction...
 A raw event from a router might look something like this (values have been deleted for security reasons):
 Jun 19 23:46:33 router-name router_name [fw-rule-name] DESCR="[description]Block All Traffic" IN=eth-if OUT= MAC=MAC SRC=SOURCE-IP DST=DST-IP LEN=XX TOS=YY PREC=0x00 TTL=TTL ID=ID PROTO=TCP SPT=51765 DPT=9332 SEQ=SEQ ACK=0 WINDOW=WIN SYN URGP=0 MARK=MARK
 
-The ruleset in the file will create a JSON object containing all the data found in the log entry.
+The ruleset in the file will create a JSON object containing all the data found in the log entry above.
 As this will most certainly differ between routers, you will need to tweak the rsyslog config.
 
 ### JQ
 In the jq folder you will find a jq filter that extracts incoming JSON log files
 record by record and transform them to a format suitable for the PosgreSQL db.
 The scripts in the bin folder assumes the jqfilter.jq file is in the project root, so 
-there's a copy of it there at the moment.
+there's a copy of it there as well at the moment.
 
 ### SQL
 The sql folder contains files needed to set up a PostgreSQL database that holds log data. 

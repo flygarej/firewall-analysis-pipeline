@@ -4,8 +4,8 @@ set -Eeuo pipefail
 REMOTE_HOST="${REMOTE_HOST:-localhost}"
 REMOTE_FILE="${1:-/var/log/remotelogs/firewall.log.1}"
 
-DB_HOST="${DB_HOST:-localhost}"
-DB_PORT="${DB_PORT:-5432}"
+DB_HOST="${DB_HOST:-helper}"
+DB_PORT="${DB_PORT:-31432}"
 DB_USER="${DB_USER:-loguser}"
 DB_NAME="${DB_NAME:-logdb}"
 

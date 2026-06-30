@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_DIR="$(dirname "$SCRIPT_DIR")"
+SQL_DIR="$BASE_DIR/queries"
 
 [[ -f "$BASE_DIR/config.env" ]] && source "$BASE_DIR/config.env"
 
@@ -11,87 +12,52 @@ DB_PORT="${DB_PORT:-5432}"
 DB_NAME="${DB_NAME:-logdb}"
 DB_USER="${DB_USER:-loguser}"
 
-PSQL=(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME")
+PSQL=(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1)
 
-case "${1:-}" in
-    top-scanners)
-        "${PSQL[@]}" -c "
-            SELECT net_src_ip, count(*) AS hits
-            FROM firewall.events
-            WHERE reported_at >= now() - interval '7 days'
-            GROUP BY net_src_ip
-            ORDER BY hits DESC
-            LIMIT 30;
-        "
-        ;;
+usage() {
+    echo "Usage:"
+    echo "  fwq <query-name>"
+    echo "  fwq ports-by-source <ip-or-subnet>"
+    echo
+    echo "Available queries:"
+    find "$SQL_DIR" -maxdepth 1 -type f -name '*.sql' \
+        -printf '  %f\n' | sed 's/\.sql$//' | sort
+}
 
-    top-ports)
-        "${PSQL[@]}" -c "
-            SELECT net_dst_port, count(*) AS hits
-            FROM firewall.events
-            WHERE reported_at >= now() - interval '7 days'
-            GROUP BY net_dst_port
-            ORDER BY hits DESC
-            LIMIT 30;
-        "
-        ;;
+[[ $# -ge 1 ]] || {
+    usage
+    exit 1
+}
 
-    mirai)
-        "${PSQL[@]}" -c "
-            SELECT
-                net_src_ip,
-                net_dst_ip,
-                net_dst_port,
-                net_seq,
-                count(*) AS hits
-            FROM firewall.events
-            WHERE net_protocol = 'tcp'
-              AND net_flag_syn = true
-              AND family(net_dst_ip) = 4
-              AND mirai_signature = true
-            GROUP BY net_src_ip, net_dst_ip, net_dst_port, net_seq
-            ORDER BY hits DESC
-            LIMIT 50;
-        "
-        ;;
+query="$1"
+sql_file="$SQL_DIR/$query.sql"
 
-    fingerprints)
-        "${PSQL[@]}" -c "
-            SELECT
-                net_src_ip,
-                net_dst_port,
-                net_ttl,
-                net_window,
-                net_flag_syn,
-                net_flag_ack,
-                net_flag_rst,
-                count(*) AS hits
-            FROM firewall.events
-            WHERE reported_at >= now() - interval '7 days'
-            GROUP BY
-                net_src_ip,
-                net_dst_port,
-                net_ttl,
-                net_window,
-                net_flag_syn,
-                net_flag_ack,
-                net_flag_rst
-            ORDER BY hits DESC
-            LIMIT 50;
-        "
-        ;;
+[[ -f "$sql_file" ]] || {
+    echo "Unknown query: $query" >&2
+    echo >&2
+    usage >&2
+    exit 1
+}
 
-    imports)
-        "${PSQL[@]}" -c "
-            SELECT imported_at, source_host, source_path, source_size, row_count
-            FROM firewall.imported_files
-            ORDER BY imported_at DESC
-            LIMIT 20;
-        "
+case "$query" in
+    ports-by-source)
+        [[ $# -ge 2 ]] || {
+            echo "Missing argument." >&2
+            echo "Usage: fwq ports-by-source <ip-or-subnet>" >&2
+            exit 1
+        }
+
+        "${PSQL[@]}" \
+            -v subnet="$2" \
+            -f "$sql_file"
         ;;
 
     *)
-        echo "Usage: fwq {top-scanners|top-ports|mirai-seq|fingerprints|imports}"
-        exit 1
+        if [[ $# -gt 1 ]]; then
+            echo "Query '$query' does not accept arguments." >&2
+            exit 1
+        fi
+
+        "${PSQL[@]}" -f "$sql_file"
         ;;
 esac
